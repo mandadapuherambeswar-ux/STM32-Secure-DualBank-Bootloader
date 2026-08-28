@@ -9,6 +9,32 @@ A robust, fail-safe **Dual-Bank In-Application-Programming (IAP) Bootloader** fo
 
 ---
 
+## 🔌 Hardware Circuit Diagram & In-System Programming (IAP) Interface
+
+```
+                          +3.3V Power Bus
+                                |
+ +------------------------------+-------------------------------------------------+
+ |                              |                                                 |
+ |                             3V3                                                |
+ |                                                                                |
+ |    [ STM32F401 MCU ]                                                           |
+ |                                                                                |
+ |      (SWDIO)       (SWCLK)       (NRST)        (BOOT0)       (TX)       (RX)   |
+ |        PA13          PA14         NRST          BOOT0         PA2        PA3   |
+ +---------+-------------+------------+--------------+------------+----------+----+
+           |             |            |              |            |          |
+           |             |            |          [ 10kΩ ]         |          |
+           |             |            |              |            |          |
+           v             v            v             GND           v          v
+ +------------------------------------+               +---------------------------+
+ |       ST-LINK V2 / J-Link Debugger |               |  FT232R USB-UART Adapter  |
+ |        (SWD Firmware Flasher)      |               |  (IAP UART Firmware OTA)  |
+ +------------------------------------+               +---------------------------+
+```
+
+---
+
 ## 🏛️ Flash Memory Partition Map
 
 ```
@@ -25,16 +51,15 @@ A robust, fail-safe **Dual-Bank In-Application-Programming (IAP) Bootloader** fo
 
 ---
 
-## ⚡ Core Features
+## ⚡ Hardware Pinout Matrix
 
-1. **A/B Dual-Bank Seamless Updates & Rollback**:
-   - New firmware is staged into the inactive slot without interrupting current operations.
-   - If a new firmware image fails booting or watchdog triggers within 10 seconds, the bootloader automatically restores the previous stable slot.
-2. **Deterministic Integrity Verification**:
-   - Header metadata (`magic`, `version`, `image_size`, `crc32`) must pass before branch execution.
-   - Computes whole-image CRC32 in under 12 ms on ARM Cortex-M4 @ 84 MHz.
-3. **Safe Vector Relocation (`VTOR`)**:
-   - Properly disables all interrupts (`__disable_irq()`), points `SCB->VTOR` to application base, reinitializes Main Stack Pointer (`MSP`), and jumps to the application Reset Handler.
+| Pin Name | MCU Pin | Description | Purpose |
+| :--- | :--- | :--- | :--- |
+| **SWDIO** | `PA13` | Serial Wire Data I/O | JTAG/SWD Debugging & Initial Bootloader Flash |
+| **SWCLK** | `PA14` | Serial Wire Clock | SWD Clock Line |
+| **BOOT0** | `BOOT0`| Boot Mode Selector | Pulled to GND via 10kΩ resistor (Boot from Flash) |
+| **USART2 TX** | `PA2` | Serial Telemetry Output | IAP Status & Boot Logs (115200 baud) |
+| **USART2 RX** | `PA3` | Firmware Ingestion Input | YMODEM / Binary Frame Ingestion |
 
 ---
 
@@ -42,7 +67,7 @@ A robust, fail-safe **Dual-Bank In-Application-Programming (IAP) Bootloader** fo
 
 ```bash
 # Compile the bootloader using GCC
-gcc -Wall -Wextra -Iinclude src/image_auth.c src/bootloader.c src/main.c -o bootloader_sim
+gcc -Wall -Wextra -Iinclude src/image_auth.c src/flash_driver.c src/bootloader.c src/main.c -o bootloader_sim
 
 # Run simulation
 ./bootloader_sim
